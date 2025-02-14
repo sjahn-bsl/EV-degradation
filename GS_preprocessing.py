@@ -125,10 +125,10 @@ def process_files(start_path, save_path, vehicle_type, altitude=False):
     ProcessPoolExecutor를 통해 병렬 처리하며 tqdm로 진행도를 표시합니다.
     """
     # 전체 폴더 개수를 계산(하위 폴더 중 leaf 디렉터리만)
-    total_folders = sum([len(dirs) == 0 for _, dirs, _ in os.walk(start_path)])
+    total_folders = sum([len(dirs) == 0 for _, dirs, _ in os.walk(start_path)]) #start_path 내의 "leaf 디렉토리(하위 폴더가 없는 폴더)" 개수를 계산하는 코드
 
-    with tqdm(total=total_folders, desc="Processing folders", unit="folder") as pbar:
-        with ProcessPoolExecutor() as executor:
+    with tqdm(total=total_folders, desc="Processing folders", unit="folder") as pbar: #total_folders 개수만큼 진행 바를 만들고, 각 폴더 처리 시 업데이트 됨.
+        with ProcessPoolExecutor() as executor: # 여러 개의 폴더를 동시에 처리(병렬 처리)하여 실행 속도를 최적화
             futures = []
             # 모든 경로를 순회하며 leaf 디렉터리를 찾는다.
             for root, dirs, files in os.walk(start_path):
@@ -180,7 +180,7 @@ def fill_altitude(df):
 
     return df
 
-def process_folder(root, files, save_path, vehicle_dict, altitude):
+def process_folder(root, files, save_path, vehicle_dict, altitude): #root: 현재 처리 중인 폴더 경로, files: root 폴더 내의 파일 리스트, save_path: 처리된 CSV를 저장할 폴더, vehicle_dict: 차량 번호와 모델명을 매칭하는 딕셔너리
     """
     주어진 root(leaf 디렉토리)에 있는 CSV 파일을 필터링 후,
     병합/처리하여 최종 CSV로 저장하는 함수입니다.
@@ -188,9 +188,9 @@ def process_folder(root, files, save_path, vehicle_dict, altitude):
     """
     # altitude 여부에 따른 파일 필터
     if altitude:
-        filtered_files = [f for f in files if f.endswith('.csv') and 'bms' in f and 'altitude' in f]
+        filtered_files = [f for f in files if f.endswith('.csv') and 'bms' in f and 'altitude' in f] # altitude가 True이면 고도 정보가 포함된 BMS 파일만 선택
     else:
-        filtered_files = [f for f in files if f.endswith('.csv') and 'bms' in f and 'altitude' not in f]
+        filtered_files = [f for f in files if f.endswith('.csv') and 'bms' in f and 'altitude' not in f] # altitude가 False이면 일반 BMS 파일만 선택
 
     filtered_files.sort()
     dfs = []
@@ -204,14 +204,14 @@ def process_folder(root, files, save_path, vehicle_dict, altitude):
         name_parts = file_name.split('_')
 
         # altitude 여부에 따라 device_no, date_parts 위치가 다름
-        device_no = name_parts[1] if not altitude else name_parts[2]
+        device_no = name_parts[1] if not altitude else name_parts[2] # 파일명에서 device_no 추출
         date_parts = name_parts[2].split('-') if not altitude else name_parts[3].split('-')
-        year_month = '-'.join(date_parts[:2])
+        year_month = '-'.join(date_parts[:2]) # 파일명에서 year_month 추출
 
         # 단말기번호에 대응되는 모델명 가져오기 (없으면 'Unknown')
         vehicle_model = get_vehicle_type(device_no, vehicle_dict)
 
-        save_folder = os.path.join(save_path, vehicle_model)
+        save_folder = os.path.join(save_path, vehicle_model) #save_path/{차량 모델명} 형식으로 폴더를 생성하여 데이터를 저장
         if not os.path.exists(save_folder):
             os.makedirs(save_folder)
 
@@ -299,48 +299,48 @@ def process_folder(root, files, save_path, vehicle_dict, altitude):
         # 최종 CSV 저장
         data_save.to_csv(output_file_path, index=False)
 
-def process_files_trip_by_trip(start_path, save_path):
+def process_files_trip_by_trip(start_path, save_path): #save_path: Trip 단위로 분할된 데이터를 저장할 폴더 경로
     """
     CSV 파일을 trip 단위로 분할/저장하는 메인 함수.
-    start_path부터 하위 디렉토리를 탐색하며 모든 CSV 파일을 찾고,
+    start_path(월별 병합된 BMS 데이터)부터 하위 디렉토리를 탐색하며 모든 CSV 파일을 찾고,
     각 파일에 대해 process_wrapper 함수를 호출합니다.
     """
     # 전체 CSV 파일 개수 파악
     csv_files = [os.path.join(root, file)
-                 for root, _, files in os.walk(start_path)
+                 for root, _, files in os.walk(start_path) # os.walk(start_path)를 사용하여 start_path내의 모든 .csv파일을 리스트에 저장
                  for file in files if file.endswith('.csv')]
-    total_files = len(csv_files)
+    total_files = len(csv_files) # csv 파일 개수를 total_files 변수에 저장(진행 바 표시를 위해)
 
     # tqdm를 이용해 진행 상황 출력
-    with tqdm(total=total_files, desc="Processing files", unit="file") as pbar:
+    with tqdm(total=total_files, desc="Processing files", unit="file") as pbar: #Processing files라는 설명과 함께 진행 바를 출력
         # 파일들을 병렬 처리
         future_to_file = {}
-        with ProcessPoolExecutor() as executor:
+        with ProcessPoolExecutor() as executor: # 여러 개의 CSV 파일들을 동시에 처리
             for file_path in csv_files:
-                future = executor.submit(process_wrapper, file_path, save_path)
+                future = executor.submit(process_wrapper, file_path, save_path) # 개별 파일을 process_wrapper()에 전달하여 처리
                 future_to_file[future] = file_path
 
-            for future in as_completed(future_to_file):
+            for future in as_completed(future_to_file): # 처리가 완료된 파일들을 순차적으로 확인
                 file_path = future_to_file[future]
                 try:
-                    future.result()
+                    future.result() #결과 가져오기
                 except Exception as exc:
                     print(f'File {file_path} generated an exception: {exc}')
                 finally:
-                    pbar.update(1)
+                    pbar.update(1) # 진행 바 업데이트
 
-    print("Processing complete")
+    print("Processing complete") # 모든 파일이 Trip 단위로 처리 완료되었음을 알리는 메세지 출력
 
-def process_wrapper(file_path, save_path):
+def process_wrapper(file_path, save_path): #file_path를 process_single_file()에 전달하여 Trip 단위로 변환 및 저장
     """
     단일 파일을 처리하기 위한 래퍼 함수.
     오류 발생 시 예외처리를 담당합니다.
     """
     try:
-        process_single_file(file_path, save_path)
-    except Exception as e:
+        process_single_file(file_path, save_path) # process_single_file 호출
+    except Exception as e: # 실행 도중 오류가 발생할 경우 예외 처리
         print(f"Error processing file {file_path}: {e}")
-        raise
+        raise # raise를 사용하여 예외를 다시 발생시킴
 
 def process_single_file(file_path, save_path):
     """
@@ -354,7 +354,7 @@ def process_single_file(file_path, save_path):
         # CSV 로드 (기본 pandas.read_csv, 인코딩 가정)
         data = pd.read_csv(file_path)
 
-        # altitude 컬럼 존재 여부에 따라 파일명 규칙이 달라짐
+        # altitude 컬럼 존재 여부에 따라 파일명 규칙이 달라짐, device_no와 year_month를 파일명에서 추출
         if 'altitude' in data.columns:
             parts = file_path.split(os.sep)
             file_name = parts[-1]
@@ -373,7 +373,7 @@ def process_single_file(file_path, save_path):
         non_altitude_file_pattern = f"bms_{device_no}-{year_month}-trip-"
         existing_files = [
             f for f in os.listdir(save_path)
-            if f.startswith(altitude_file_pattern) or f.startswith(non_altitude_file_pattern)
+            if f.startswith(altitude_file_pattern) or f.startswith(non_altitude_file_pattern) # save_path내에서 device_no와 year_month가 동일한 Trip 파일이 이미 존재하는지 확인
         ]
 
         if existing_files:
@@ -409,7 +409,7 @@ def process_single_file(file_path, save_path):
             if data.loc[i + 1, 'time'] - data.loc[i, 'time'] > cut_time:
                 cut.append(i + 1)
 
-        # 중복 제거 후 정렬
+        # 중복된 Trip 분할 지점 제거 후 시간 순서대로 정렬
         cut = list(set(cut))
         cut.sort()
 
@@ -435,7 +435,7 @@ def process_single_file(file_path, save_path):
                 else:
                     filename = f"bms_{device_no}-{year_month}-trip-{trip_counter}.csv"
 
-                # trip 데이터를 저장
+                # 유효한 trip 데이터만 save_path에 csv 파일로 저장
                 os.makedirs(save_path, exist_ok=True)
                 trip.to_csv(os.path.join(save_path, filename), index=False)
                 trip_counter += 1
