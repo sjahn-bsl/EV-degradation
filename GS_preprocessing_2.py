@@ -364,70 +364,73 @@ def merge_bms_data_by_device(start_path, save_path,
 def process_files_trip_by_trip(start_path, save_path):
     """
     CSV 파일을 trip 단위로 분할/저장하는 메인 함수.
+    start path에서 모든 csv파일을 탐색, 각 csv 파일을 Trip 단위로 변환 후 save_path에 저장
     """
-    csv_files = [os.path.join(root, file)
-                 for root, _, files in os.walk(start_path)
-                 for file in files if file.endswith('.csv')]
-    total_files = len(csv_files)
+    csv_files = [os.path.join(root, file) # 파일 경로를 절대 경로로 변환
+                 for root, _, files in os.walk(start_path) #os.walk(start_path): start_path 내부의 모든 디렉터리 탐색
+                 for file in files if file.endswith('.csv')] # csv 파일만 탐색
+    total_files = len(csv_files) # 총 csv 파일 개수를 저장
 
-    with tqdm(total=total_files, desc="Processing files", unit="file") as pbar:
-        future_to_file = {}
-        with ProcessPoolExecutor() as executor:
-            for file_path in csv_files:
-                future = executor.submit(process_wrapper, file_path, save_path)
-                future_to_file[future] = file_path
+    with tqdm(total=total_files, desc="Processing files", unit="file") as pbar: #진행률바를 출력하는 라이브러리
+        future_to_file = {} # future 객체(비동기 실행 객체)와 파일 경로를 매핑, 실행된 각 프로세스의 결과를 추적
+        with ProcessPoolExecutor() as executor: # 병렬 처리(Python 멀티프로세싱) 지원
+            for file_path in csv_files: # 각 csv파일을 병렬로 처리
+                future = executor.submit(process_wrapper, file_path, save_path) # 각 csv 파일을 process_wrapper() 함수에 전달하여 비동기 실행, 비동기 실행=여러 파일을 동시에 처리
+                future_to_file[future] = file_path #future 객체와 해당 파일 경로를 저장(오류 발생 시 어떤 파일인지 추적 가능)
 
-            for future in as_completed(future_to_file):
+            for future in as_completed(future_to_file): # 병렬 처리된 파일들의 결과 확인, as_completed(future_to_file): 모든 병렬 작업이 완료될 때까지 대기
                 file_path = future_to_file[future]
                 try:
-                    future.result()
+                    future.result() #비동기 작업의 실행 결과를 가져옴
                 except Exception as exc:
-                    print(f'File {file_path} generated an exception: {exc}')
+                    print(f'File {file_path} generated an exception: {exc}') # 특정파일에서 오류가 발생하면 오류 메세지를 출력
                 finally:
-                    pbar.update(1)
+                    pbar.update(1) # tqdm 진행률 바를 1 증가시킴
 
     print("Processing complete")
 
 
-def process_wrapper(file_path, save_path):
+def process_wrapper(file_path, save_path): #file_path를 process_single_file()에 전달하여 Trip 단위로 변환 및 저장
     """
     단일 파일을 처리하기 위한 래퍼 함수.
     오류 발생 시 예외처리를 담당합니다.
     """
     try:
-        process_single_file(file_path, save_path)
-    except Exception as e:
+        process_single_file(file_path, save_path) # process_single_file 호출
+    except Exception as e: # 실행 도중 오류가 발생할 경우 예외 처리
         print(f"Error processing file {file_path}: {e}")
-        raise
+        raise # raise를 사용하여 예외를 다시 발생시킴
 
 
 def process_single_file(file_path, save_path):
     """
     단일 CSV 파일에 대한 실제 로직 (대략적인 예시)
+    1. csv파일을 로드 2. mod_temp_list에서 평균 모듈 온도 계산 3. device_no, year_month 추출 4. 이미 존재하는 파일인지 확인 후 중복 저장 방지
+    5. chrg_cable_conn 및 시간간격(10초 이상)을 기준으로 Trip 분할 6. Trip 유효성 검사 7. Trip 확장 조건 확인 후 저장
     """
-    try:
-        # CSV 로드
+    try: #예외 발생 시 프로그램이 중단되지 않도록 처리
+        # CSV 파일을 Pandas 데이터프레임을 불러옴
         data = pd.read_csv(file_path)
 
         ###################################################################
         # (1) mod_temp_list에서 평균 모듈 온도 컬럼 생성
         ###################################################################
-        if 'mod_temp_list' in data.columns:
+        if 'mod_temp_list' in data.columns: #mod_temp_list는 여러 개의 모듈 온도를 콤마로 구분한 문자열.
             data['mod_temp_avg'] = data['mod_temp_list'].apply(
-                lambda x: np.mean([float(temp) for temp in str(x).split(',')])
+                lambda x: np.mean([float(temp) for temp in str(x).split(',')]) # 각각의 값을 실수(float)로 변환 후 평균값을 저장
             )
         else:
             data['mod_temp_avg'] = np.nan
 
-        # altitude 컬럼 유무에 따른 file_prefix 파싱
-        if 'altitude' in data.columns:
+        # altitude 컬럼 유무에 따른 file_prefix 파싱, 목적: 파일 구분 (고도 포함 데이터 vs 일반 데이터)
+        if 'altitude' in data.columns: #altitude 컬럼이 있으면 파일명에 bms_altitude_ 접두사 추가
             parts = file_path.split(os.sep)
             file_name = parts[-1]
             name_parts = file_name.split('_')
             device_no = name_parts[2]
             year_month = name_parts[3][:7]
             file_prefix = f"bms_altitude_{device_no}-{year_month}-trip-"
-        else:
+        else: # altitude 컬럼이 없으면 bms_접두사 사용
             parts = file_path.split(os.sep)
             file_name = parts[-1]
             name_parts = file_name.split('_')
@@ -436,7 +439,7 @@ def process_single_file(file_path, save_path):
             file_prefix = f"bms_{device_no}-{year_month}-trip-"
 
         # (2) device_no → vehicle_type 매핑
-        vehicle_type = get_vehicle_type(device_no, vehicle_dict)
+        vehicle_type = get_vehicle_type(device_no, vehicle_dict) # vehicle_dict를 참고하여 device_no에 해당하는 차량 모델명 가져옴.
 
         # (3) 이미 해당 device_no, year_month 파일이 있으면 스킵
         vehicle_save_path = os.path.join(save_path, vehicle_type)
@@ -456,7 +459,7 @@ def process_single_file(file_path, save_path):
         except ValueError:
             data['time'] = pd.to_datetime(data['time'], format='%Y-%m-%d %H:%M:%S')
 
-        # (4) Trip 구간 분할 (chrg_cable_conn, 시간 간격)
+        # (4) Trip 구간 분할 (chrg_cable_conn이 변경되는 시점, 시간 간격이 10초 이상 차이나는 경우)
         cut = []
         if data.loc[0, 'chrg_cable_conn'] == 0:
             cut.append(0)
@@ -471,7 +474,7 @@ def process_single_file(file_path, save_path):
 
         cut = sorted(set(cut))
 
-        # (5) Trip별 처리
+        # (5) Trip별 처리, Trip 유효성 검사 및 저장
         trip_counter = 1
         for idx in range(len(cut) - 1):
             start_idx = cut[idx]
