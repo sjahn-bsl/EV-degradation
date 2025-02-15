@@ -64,9 +64,9 @@ def fill_altitude(df):
 
 
 def split_into_periods_keep_midnight(df, period_days=7,
-                                     midnight_gap_sec=60,   # 자정 ±1분
-                                     continuity_sec=10,     # 10초 미만이면 연속
-                                     pad_nextday_rows=15):  # 다음날 처음 15행
+                                     midnight_gap_sec=60,   # 자정 경계에서 ±1분 유지
+                                     continuity_sec=10,     # 10초 미만이면 연속 (데이터 연속성 확보)
+                                     pad_nextday_rows=15):  # 다음날 처음 15행 (주행의 연속성을 유지하기 위해)
     """
     df를 'period_days' 간격으로 나누면서:
       - 첫 구간(i=0)일 경우:
@@ -80,20 +80,20 @@ def split_into_periods_keep_midnight(df, period_days=7,
     if df.empty:
         return {}
 
-    df = df.sort_values('time').reset_index(drop=True)
+    df = df.sort_values('time').reset_index(drop=True) # time 기준으로 데이터를 정렬, 시간순 정렬 필수
 
-    start_time = df['time'].min()
+    start_time = df['time'].min() # 데이터의 가장 처음과 마지막 tme을 저장, 데이터를 일정한 기간(period_days)로 나누기 위해 필요
     end_time = df['time'].max()
 
-    period_frames = {}
+    period_frames = {} # 빈 딕셔너리를 생성하여 분할된 데이터 저장
     period_idx = 1
 
-    current_start = start_time
+    current_start = start_time # current_start부터 period_days 단위로 데이터를 분할
     while current_start <= end_time:
         current_end = current_start + pd.Timedelta(days=period_days)
 
-        subdf = df[(df['time'] >= current_start) & (df['time'] < current_end)].copy()
-        if subdf.empty:
+        subdf = df[(df['time'] >= current_start) & (df['time'] < current_end)].copy() # 현재 기간에 해당하는 데이터 필터링
+        if subdf.empty: # 해당 기간의 데이터가 없으면 다음 구간으로 이동
             current_start = current_end
             period_idx += 1
             continue
@@ -101,7 +101,7 @@ def split_into_periods_keep_midnight(df, period_days=7,
         # -----------------------------
         # (i=0) => 자정 이전 이벤트 제거
         # -----------------------------
-        if period_idx == 1:
+        if period_idx == 1: # 첫번째기간에서는 자정 이전 데이터 제거 가능
             # “이미 진행 중이던 이벤트” 제거 로직:
             #   - 보통 current_start가 자정이라면, 이전 데이터는 필터링에서 자연스럽게 제외
             #   - 필요하다면 subdf 맨 앞에서 자정 이전부터 이어져 내려온 chunk를 제거할 수도 있음
@@ -190,10 +190,10 @@ def process_device_folder(device_folder_path, save_path, vehicle_type,
     if not csv_files:
         print(f"[{device_no}] No CSV files found. Skipping...")
         return
-
+    #csv 파일 병합
     dfs = []
     for file_path in csv_files:
-        df = read_file_with_detected_encoding(file_path)
+        df = read_file_with_detected_encoding(file_path) # csv 파일을 인코딩 문제없이 불러오는 함수
         if df is None:
             continue
 
@@ -215,7 +215,7 @@ def process_device_folder(device_folder_path, save_path, vehicle_type,
             print(f"[{device_no}] Time format error in file {file_path}. Skipping...")
             continue
 
-        # 정렬
+        # time 기준으로 데이터 정렬
         df = df.sort_values(by='time').reset_index(drop=True)
         dfs.append(df)
 
@@ -223,7 +223,7 @@ def process_device_folder(device_folder_path, save_path, vehicle_type,
         print(f"[{device_no}] All CSV files invalid or empty. Skipping...")
         return
 
-    combined_df = pd.concat(dfs, ignore_index=True).sort_values(by='time').reset_index(drop=True)
+    combined_df = pd.concat(dfs, ignore_index=True).sort_values(by='time').reset_index(drop=True) #여러 csv파일을 pd.concat()으로 병합
 
     # -----------------------------
     # 2) 전처리: speed, accel, Power_data 등
@@ -232,7 +232,7 @@ def process_device_folder(device_folder_path, save_path, vehicle_type,
 
     # speed(m/s) = emobility_spd(km/h) * 0.27778
     if 'emobility_spd' in combined_df.columns:
-        combined_df['speed'] = combined_df['emobility_spd'] * 0.27778
+        combined_df['speed'] = combined_df['emobility_spd'] * 0.27778 # 속도 km/h를 m/s로 변환
     else:
         combined_df['speed'] = 0
 
@@ -262,10 +262,10 @@ def process_device_folder(device_folder_path, save_path, vehicle_type,
     # -----------------------------
     splitted = split_into_periods_keep_midnight(
         combined_df,
-        period_days=period_days,
+        period_days=period_days, # 데이터를 7일 단위로 분할
         midnight_gap_sec=60,   # 자정 ±1분
-        continuity_sec=10,     # 10초 미만이면 연속
-        pad_nextday_rows=15    # 다음날 첫 15행
+        continuity_sec=10,     # 10초 미만이면 연속성 유지
+        pad_nextday_rows=15    # 다음날 첫 15행 추가
     )
 
     if not splitted:
@@ -273,7 +273,7 @@ def process_device_folder(device_folder_path, save_path, vehicle_type,
         return
 
     # -----------------------------
-    # 4) CSV 저장
+    # 4) 분할된 데이터를 CSV로 저장
     # -----------------------------
     device_save_folder = os.path.join(save_path, vehicle_model)
     os.makedirs(device_save_folder, exist_ok=True)
@@ -324,29 +324,29 @@ def merge_bms_data_by_device(start_path, save_path,
         vehicle_type = {}
 
     device_folders = [
-        d for d in os.listdir(start_path)
+        d for d in os.listdir(start_path) # start_path 내부의 디바이스별 폴더 목록을 가져옴
         if os.path.isdir(os.path.join(start_path, d))
     ]
-    if not device_folders:
+    if not device_folders: #디바이스 폴더가 없으면 오류 메세지 출력 후 종료
         print("No device folders found. Check the start_path.")
         return
 
     total_devices = len(device_folders)
     print(f"Found {total_devices} device folders. Starting... (period_days={period_days})")
 
-    with ProcessPoolExecutor() as executor:
+    with ProcessPoolExecutor() as executor: # 각 디바이스 폴더를 병렬로 처리하여 속도 향상
         future_to_device = {}
         for device_folder_name in device_folders:
             device_folder_path = os.path.join(start_path, device_folder_name)
             future = executor.submit(
-                process_device_folder,
+                process_device_folder, #디바이스 폴더 개수만큼 병렬 실행
                 device_folder_path,
                 save_path,
                 vehicle_type,
                 altitude,
                 period_days
             )
-            future_to_device[future] = device_folder_name
+            future_to_device[future] = device_folder_name #future_to_device 딕셔너리를 사용해 처리할 디바이스를 추적
 
         # 진행도 표시용 tqdm
         with tqdm(total=total_devices, desc="Merging by device") as pbar:
