@@ -518,14 +518,14 @@ def process_single_file(file_path, save_path):
 
 def check_trip_base_conditions(trip):
     """
-    기존에 주어진 trip 유효성 체크 로직 + 추가된 모듈 온도 조건
+    기존에 주어진 trip 유효성 체크 로직 + 추가된 모듈 온도 조건: Trip 시작 1분간 평균 온도 및 전체 평균 온도
     """
-    # 1) 빈 데이터프레임
+    # 1) 빈 데이터프레임 체크, Trip이 생성되지 않았거나, 필터링 과정에서 데이터가 전부 삭제된 경우를 처리
     if trip.empty:
         return False
 
-    # 2) 가속도 비정상
-    if (trip['acceleration'] > 9.0).any():
+    # 2) 가속도 비정상, EV에서 비정상적인 급가속은 배터리 열화 원인이 될 가능성이 큼
+    if (trip['acceleration'] > 9.0).any(): # 9.0m/s^2를 초과하는 행이 하나라도 있으면 무효한 Trip
         return False
 
     # 3) 주행 시간(5분 이상), 이동 거리(3km 이상)
@@ -555,18 +555,18 @@ def check_trip_base_conditions(trip):
         else:
             zero_speed_duration = 0
 
-    # 6) 모듈 온도 조건
+    # 6) 모듈 온도 조건, Trip이 시작할 때 배터리 온도가 정상적인 범위인지 확인
     # (a) Trip 최초 1분 평균 온도
     first_min_mask = (t - t.iloc[0]) <= pd.Timedelta(minutes=1)
     trip_first_min = trip.loc[first_min_mask]
     if trip_first_min.empty:
         return False  # 1분 미만이면 제외
-    first_min_temp_mean = trip_first_min['mod_temp_avg'].mean()
+    first_min_temp_mean = trip_first_min['mod_temp_avg'].mean() #평균 온도가 20~28도 범위 이내에 있어야 함
     if not (20 <= first_min_temp_mean <= 28):
         return False
 
     # (b) Trip 전체 평균 온도
-    whole_trip_temp_mean = trip['mod_temp_avg'].mean()
+    whole_trip_temp_mean = trip['mod_temp_avg'].mean() # Trip 전체의 평균값이 20~28도 범위 내에 있어야 함
     if not (20 <= whole_trip_temp_mean <= 28):
         return False
 
@@ -581,23 +581,23 @@ def check_time_gap_conditions(data, start_idx, end_idx):
     조건을 만족하면, Trip 앞뒤로 30행씩 확장해서 리턴.
     만족하지 못하면 None.
     """
-    if start_idx == 0 or end_idx == (len(data) - 1):
+    if start_idx == 0 or end_idx == (len(data) - 1): #Trip이 파일의 첫번째 또는 마지막 행과 연결된 경우 확장하지 않음.
         return None
-
+    # Trip 시작/종료 시점의 timestamp 가져오기
     trip_start_time = data.loc[start_idx, 'time']
     trip_end_time = data.loc[end_idx, 'time']
-
+    # 이전 및 다음 timestamp 가져오기, 이전/다음 데이터와 비교해서 Trip의 시작/종료가 충분히 떨어져 있는지 확인
     prev_time = data.loc[start_idx - 1, 'time']
     next_time = data.loc[end_idx + 1, 'time']
 
-    # (1) 2시간 이상
+    # (1) 2시간 이상, Trip이 기존 데이터와 너무 가까운 경우 확장하지 않음
     if (trip_start_time - prev_time).total_seconds() < 7200:
         return None
 
-    # (2) 1시간 이상
+    # (2) 1시간 이상, Trip이 끝난 후 다음 데이터와 너무 가까운 경우 확장하지 않음
     if (next_time - trip_end_time).total_seconds() < 3600:
         return None
-
+    # Trip을 확장하여 더 많은 데이터 확보
     expanded_start = max(start_idx - 30, 0)
     expanded_end = min(end_idx + 30, len(data) - 1)
 
