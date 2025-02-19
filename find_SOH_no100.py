@@ -35,7 +35,10 @@ def process_file(file_path):
         # 🔹 "SOH" 열이 존재하는지 확인
         if 'SOH' in df.columns:
             df['SOH'] = pd.to_numeric(df['SOH'], errors='coerce')  # 문자열 -> 숫자로 변환
-            if (df['SOH'] != 100).any():  # 소수점 반올림 없이 원본 값 비교
+            df = df.dropna(subset=['SOH'])  # NaN 값 제거
+
+            # 🔹 소수점 5자리까지 반올림 후 비교
+            if (df['SOH'].round(5) != 100).any():
                 return file_path
     except Exception as e:
         print(f"파일 {file_path}을 읽는 중 오류 발생: {e}")
