@@ -65,5 +65,11 @@ if __name__ == "__main__":
         print("\nsoh 값이 100이 아닌 파일 목록:")
         for file in files_with_non_100_soh:
             print(file)
+
+        # 🔹 CSV 파일로 저장
+        df_result = pd.DataFrame(files_with_non_100_soh, columns=['File_Path'])
+        df_result.to_csv(output_file, index=False, encoding='utf-8-sig')
+        print(f"\nSOH 값이 100이 아닌 파일 목록이 저장됨: {output_file}")
+
     else:
         print("\nsoh가 100이 아닌 cell값을 찾지 못함.")
