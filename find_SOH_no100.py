@@ -6,6 +6,9 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 # 데이터 폴더 경로
 data_folder = r"D:\SamsungSTF\Processed_Data\Merged"
 
+# 결과 저장 파일 경로 추가
+output_file = r"C:\Users\6211s\OneDrive\Desktop\kentech\EV 열화 인자 분석\250211\soh_non100_files.csv"
+
 # 폴더가 존재하는지 확인
 if not os.path.exists(data_folder):
     print(f"경로를 찾을 수 없습니다: {data_folder}")
