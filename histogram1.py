@@ -125,8 +125,8 @@ def save_histogram(data, title, filename, folder):
 
     plt.figure(figsize=(8, 6))
     # 히스토그램 범위 조정: 소수점 한 자리까지 (bins 간격 0.1)
-    bins = np.arange(min(data), max(data) + 0.1, 0.1)  # 0.1 간격으로 bins 설정
-    plt.hist(data, bins=10, edgecolor='black', alpha=0.75)
+    bins = np.arange(min(data) - 0.1, max(data) + 0.1, 0.1)  # 0.1 단위 간격으로 bins 설정
+    plt.hist(data, bins=30, edgecolor='black', alpha=0.75, rwidth=0.5)  # rwidth로 막대 두께 조절
     plt.title(title)
     plt.xlabel("SOH")
     plt.ylabel("frequency")
@@ -134,7 +134,7 @@ def save_histogram(data, title, filename, folder):
     plt.grid(axis='y', linestyle='--', alpha=0.7)
 
     save_path = os.path.join(folder, filename)
-    plt.savefig(save_path)
+    plt.savefig(save_path, bbox_inches='tight')  # 그래프 저장 (여백 자동 조절)
     plt.close()  # 그래프 창 닫기
 
     print(f" 저장 완료: {save_path}")
