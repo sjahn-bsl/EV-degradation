@@ -124,14 +124,23 @@ def save_histogram(data, title, filename, folder):
         return
 
     plt.figure(figsize=(8, 6))
+
+    # 히스토그램의 x축 범위 조정
+    min_value, max_value = min(data) - 0.05, max(data) + 0.05
+    bins = np.arange(min_value, max_value+0.1, 0.1)  # 0.1 단위 간격으로 설정
+
     # 히스토그램 범위 조정: 소수점 한 자리까지 (bins 간격 0.1)
-    bins = np.arange(min(data) - 0.1, max(data) + 0.1, 0.1)  # 0.1 단위 간격으로 bins 설정
-    plt.hist(data, bins=30, edgecolor='black', alpha=0.75, rwidth=0.5)  # rwidth로 막대 두께 조절
+    plt.hist(data, bins=bins, edgecolor='black', alpha=0.75, rwidth=0.5)  # rwidth로 막대 두께 조절
     plt.title(title)
     plt.xlabel("SOH")
     plt.ylabel("frequency")
-    plt.xticks(bins, rotation=45)  # X축 레이블을 0.1 단위로 표시
     plt.grid(axis='y', linestyle='--', alpha=0.7)
+
+    # x축 범위를 적절히 설정
+    plt.xlim(min_value, max_value)
+
+    # x축 눈금 조정
+    plt.xticks(np.round(np.arange(min_value, max_value, 0.1), 1), rotation=45) # X축 레이블을 0.1 단위로 표시
 
     save_path = os.path.join(folder, filename)
     plt.savefig(save_path, bbox_inches='tight')  # 그래프 저장 (여백 자동 조절)
