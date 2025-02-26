@@ -728,7 +728,7 @@ def process_single_file_2hr(file_path, save_path):
             trip = data.loc[start_idx:end_idx, :]
 
             # (5-1) Trip 기본 유효성 체크
-            if not check_trip_base_conditions(trip):
+            if not check_trip_base_conditions_2hr(trip):
                 continue
 
             # (5-2) Trip 확장 조건 + expand(앞뒤 30행)
@@ -754,6 +754,62 @@ def process_single_file_2hr(file_path, save_path):
     except Exception as e:
         print(f"[ERROR] {file_path} 처리 중 오류: {e}")
         return
+
+def check_trip_base_conditions_2hr(trip):
+    """
+    기존에 주어진 trip 유효성 체크 로직 + 추가된 모듈 온도 조건: Trip 시작 1분간 평균 온도 및 전체 평균 온도
+    """
+    # 1) 빈 데이터프레임 체크, Trip이 생성되지 않았거나, 필터링 과정에서 데이터가 전부 삭제된 경우를 처리
+    if trip.empty:
+        return False
+
+    # 2) 가속도 비정상, EV에서 비정상적인 급가속은 배터리 열화 원인이 될 가능성이 큼
+    if (trip['acceleration'] > 9.0).any(): # 9.0m/s^2를 초과하는 행이 하나라도 있으면 무효한 Trip
+        return False
+
+    # 3) 주행 시간(5분 이상), 이동 거리(3km 이상)
+    t = trip['time']
+    t_diff = t.diff().dt.total_seconds().fillna(0)
+    v = trip['speed']
+    distance = (v * t_diff).cumsum().iloc[-1]
+
+    if (t.iloc[-1] - t.iloc[0]).total_seconds() < 300:
+        return False
+    if distance < 3000:
+        return False
+
+    # 4) 소비 에너지 (>= 1.0 kWh)
+    power = trip['Power_data']
+    data_energy = (power * t_diff / 3600 / 1000).cumsum().iloc[-1]
+    if data_energy < 1.0:
+        return False
+
+    # 5) 0속도 연속 300초
+    zero_speed_duration = 0
+    for i in range(len(trip) - 1):
+        if v.iloc[i] == 0:
+            zero_speed_duration += (t.iloc[i + 1] - t.iloc[i]).total_seconds()
+            if zero_speed_duration >= 300:
+                return False
+        else:
+            zero_speed_duration = 0
+
+    # 6) 모듈 온도 조건, Trip이 시작할 때 배터리 온도가 정상적인 범위인지 확인
+    # (a) Trip 최초 1분 평균 온도
+    first_min_mask = (t - t.iloc[0]) <= pd.Timedelta(minutes=1)
+    trip_first_min = trip.loc[first_min_mask]
+    if trip_first_min.empty:
+        return False  # 1분 미만이면 제외
+    first_min_temp_mean = trip_first_min['mod_temp_avg'].mean() #평균 온도가 20~28도 범위 이내에 있어야 함
+    if not (20 <= first_min_temp_mean <= 28):
+        return False
+
+    # (b) Trip 전체 평균 온도
+    whole_trip_temp_mean = trip['mod_temp_avg'].mean() # Trip 전체의 평균값이 20~28도 범위 내에 있어야 함
+    if not (20 <= whole_trip_temp_mean <= 28):
+        return False
+
+    return True
 
 def check_time_gap_conditions_2hr(data, start_idx, end_idx):
     """
