@@ -21,8 +21,9 @@ for label, path in file_paths.items():
     if "SOH (%)" in df.columns:
         trip_count = len(df)  # 전체 trip 개수 계산
 
-        # SOH 값이 98 이상 100 이하인 Trip 개수 계산
+        # SOH 값이 98 이상 100 이하인 Trip 개수 및 비율 계산
         soh_98_100_count = ((df["SOH (%)"] >= 98) & (df["SOH (%)"] <= 100)).sum()
+        soh_98_100_ratio = soh_98_100_count / trip_count * 100  # 백분율 계산
 
         plt.figure(figsize=(10, 5))
         plt.hist(df["SOH (%)"], bins=30, alpha=0.7, color='blue', edgecolor='black')
@@ -41,8 +42,8 @@ for label, path in file_paths.items():
         text_y = plt.ylim()[1] * 0.9  # y 위치 (상단)
 
         plt.text(text_x, text_y, f"Trip Files: {trip_count}", fontsize=12, color="red", weight="bold")
-        plt.text(text_x, text_y - plt.ylim()[1] * 0.05, f"SOH 98-100%: {soh_98_100_count}", fontsize=12, color="red",
-                 weight="bold")
+        plt.text(text_x, text_y - plt.ylim()[1] * 0.05, f"SOH 98-100%: {soh_98_100_count}", fontsize=12, color="red", weight="bold")
+        plt.text(text_x, text_y - plt.ylim()[1] * 0.1, f"Ratio: {soh_98_100_ratio:.2f}%", fontsize=12, color="red", weight="bold")
 
         # 저장할 파일 경로 설정
         save_path = os.path.join(save_folder, f"BMS_SOC_SOH_histogram_{label.split('%')[0]}.png")
