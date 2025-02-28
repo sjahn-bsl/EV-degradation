@@ -5,10 +5,10 @@ import numpy as np
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
 
-# 🔹 Trip CSV 파일들이 저장된 폴더 경로
+# Trip CSV 파일들이 저장된 폴더 경로
 trip_data_folder = r"D:\SamsungSTF\Processed_Data\TripByTrip"
 
-# 🔹 차량별 초기 배터리 용량 설정 (cell 단위로 변환)
+# 차량별 초기 배터리 용량 설정 (cell 단위로 변환)
 Q_initial_map = {
     'Bongo3EV': 180 / 3,
     'EV6': 120.6 / 2,
@@ -20,7 +20,7 @@ Q_initial_map = {
     'Porter2EV': 180 / 3
 }
 
-# 🔹 차량별 병렬(Parallel) 개수 설정
+# 차량별 병렬(Parallel) 개수 설정
 parallel_map = {
     'Bongo3EV': 3,
     'EV6': 2,
@@ -32,7 +32,7 @@ parallel_map = {
     'Porter2EV': 3
 }
 
-# 🔹 차량 모델과 device_id 매핑
+# 차량 모델과 device_id 매핑
 device_to_model = {}
 vehicle_dict = {
     'NiroEV': ['01241228149', '01241228151', '01241228153', '01241228154', '01241228155'],
@@ -71,54 +71,67 @@ def calculate_soh(file_path):
     try:
         file_name = os.path.basename(file_path)
 
-        # 🔹 정규표현식으로 device_id 추출
+        # 정규표현식으로 device_id 추출
         match = re.search(r'bms(?:_altitude)?_(\d+)-\d{4}-\d{2}-trip-\d+', file_name)
         if match:
             device_id = match.group(1)
         else:
-            print(f"🚨 {file_name}: device_id를 추출할 수 없습니다!")
+            print(f" {file_name}: device_id를 추출할 수 없습니다!")
             return {"file": file_name, "error": "Invalid file name format"}
 
         vehicle_model = device_to_model.get(device_id, None)
         if vehicle_model is None:
-            print(f"🚨 {file_name}: device_id {device_id}가 vehicle_dict에서 찾을 수 없습니다!")
+            print(f" {file_name}: device_id {device_id}가 vehicle_dict에서 찾을 수 없습니다!")
             return {"file": file_name, "error": f"Device ID {device_id} not found in vehicle_dict"}
 
         Q_initial = Q_initial_map.get(vehicle_model, None)
         if Q_initial is None:
-            print(f"🚨 {file_name}: vehicle_model {vehicle_model}에 대한 Q_initial을 찾을 수 없습니다!")
+            print(f" {file_name}: vehicle_model {vehicle_model}에 대한 Q_initial을 찾을 수 없습니다!")
             return {"file": file_name, "error": f"No Q_initial found for {vehicle_model}"}
 
         parallel_count = parallel_map.get(vehicle_model, None)
         if parallel_count is None:
-            print(f"🚨 {file_name}: 병렬 개수 정보를 찾을 수 없습니다!")
+            print(f" {file_name}: 병렬 개수 정보를 찾을 수 없습니다!")
             return {"file": file_name, "error": f"No parallel count found for {vehicle_model}"}
 
-        # 🔹 CSV 파일 불러오기
+        # CSV 파일 불러오기
         df = pd.read_csv(file_path)
         df['time'] = pd.to_datetime(df['time'])
         df['soc'] = df['soc'] * 0.01  # SOC 값을 0~1 범위로 변환
-        df['cell_current'] = df['pack_current'] / parallel_count  # 🚨 차량별 Parallel 고려하여 cell_current 계산
+        df['cell_current'] = df['pack_current'] / parallel_count  # 차량별 Parallel 고려하여 cell_current 계산
 
-        # 🔹 SOC 초기값 및 최종값 계산
-        soc_initial = df['soc'].iloc[0]  # SOC 첫 번째 값
-        soc_end = df['soc'].iloc[-1]     # SOC 마지막 값
+        # SOC 초기값 및 최종값 계산
+        soc_initial = df['soc'].iloc[0]
+        if soc_initial == 0:
+            non_zero_soc = df['soc'][df['soc'] > 0]
+            if not non_zero_soc.empty:
+                soc_initial = non_zero_soc.iloc[0]
+            else:
+                return {"file": file_name, "error": "SOC values are all zero"}
+        # SOC 최종값 설정
+        soc_end = df['soc'].iloc[-1]
+        if soc_end == 0:
+            non_zero_soc = df['soc'][df['soc'] > 0]
+            if not non_zero_soc.empty:
+                soc_end = non_zero_soc.iloc[-1]
+            else:
+                return {"file": file_name, "error": "SOC values are all zero"}
 
-        # 🔹 SOC 변화량 계산
+        # SOC 변화량 계산
         delta_soc = soc_end - soc_initial
         if abs(delta_soc) < 0.4:
             return None  # SOC 변화량이 너무 적으면 제외
 
-        # 🔹 Q_current 계산 (trapz 이용)
+        # Q_current 계산 (trapz 이용)
         df['time_seconds'] = (df['time'] - df['time'].iloc[0]).dt.total_seconds()
         Q_current = abs(np.trapz(df['cell_current'], df['time_seconds'])) / abs(delta_soc) / 3600  # Ah 변환
 
-        # 🔹 SOH 계산
+        # SOH 계산
         SOH = (Q_current / Q_initial) * 100
 
         return {
             "file": file_name, "device_id": device_id, "vehicle_model": vehicle_model,
-            "soc_initial": soc_initial, "soc_end": soc_end,  # 🚀 추가된 SOC 초기값 및 최종값
+            "soc_initial": soc_initial, "soc_end": soc_end,  # 추가된 SOC 초기값 및 최종값
             "delta_SOC": delta_soc, "Q_current (Ah)": Q_current, "Q_initial (Ah)": Q_initial, "SOH (%)": SOH
         }
     except Exception as e:
@@ -139,13 +152,13 @@ if __name__ == "__main__":
 
     results_df = pd.DataFrame(results)
 
-    # 🔹 변경된 CSV 파일명 설정
+    # 변경된 CSV 파일명 설정
     output_csv_path = r"C:\Users\6211s\OneDrive\Desktop\kentech\EV 열화 인자 분석\250224\BMS_SOC SOH 40%_results.csv"
 
-    # 🔹 폴더가 없으면 생성
+    # 폴더가 없으면 생성
     os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
 
-    # 🔹 결과 저장 (CSV)
+    # 결과 저장 (CSV)
     results_df.to_csv(output_csv_path, index=False, encoding="utf-8-sig")
 
-    print(f"\n✅ SOH 계산 완료! 결과가 '{output_csv_path}' 파일에 저장되었습니다.")
+    print(f"\n SOH 계산 완료! 결과가 '{output_csv_path}' 파일에 저장되었습니다.")
