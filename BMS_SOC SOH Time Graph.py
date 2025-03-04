@@ -9,14 +9,29 @@ from tqdm import tqdm
 # PyCharm 백엔드 문제 해결
 matplotlib.use('TkAgg')
 
+# 저장할 폴더 경로
+output_folder = r"C:\Users\6211s\OneDrive\Desktop\kentech\EV 열화 인자 분석\250224"
+# 저장할 파일 경로 변경
+output_file = os.path.join(output_folder, "SOH vs Time 20% Graph.png")  # 저장할 파일 경로
+
 # SOH 정보 파일 로드
-soh_results_path = r"C:\Users\6211s\OneDrive\Desktop\kentech\EV 열화 인자 분석\250224\BMS_SOC SOH 40%_results.csv"
+soh_results_path = os.path.join(output_folder, "BMS_SOC SOH 40%_results.csv")
 soh_df = pd.read_csv(soh_results_path)
 
 # file_name 목록 가져오기
 file_names = soh_df["file"].tolist()
 soh_values = dict(zip(soh_df["file"], soh_df["SOH (%)"]))  # SOH 값 매핑
-device_ids = {file: file.split("_")[1] for file in file_names}  # 단말기번호 추출
+# 단말기번호 추출 (파일명에 따라 다르게 처리)
+device_ids = {}
+for file in file_names:
+    parts = file.split("_")  # 언더스코어 기준으로 나누기
+
+    if parts[1] == "altitude":
+        device_id = parts[2]  # "bms_altitude_단말기번호_..." → 3번째 요소가 단말기 번호
+    else:
+        device_id = parts[1]  # "bms_단말기번호_..." → 2번째 요소가 단말기 번호
+
+    device_ids[file] = device_id  # 딕셔너리에 저장
 
 # 단말기번호별 색상을 위한 컬러맵 생성
 unique_devices = sorted(set(device_ids.values()))  # 고유한 단말기번호 리스트를 정렬
@@ -50,32 +65,38 @@ if trip_data:
 
     # time 컬럼을 datetime 형식으로 변환 후 정렬
     final_df["time"] = pd.to_datetime(final_df["time"])
-    final_df = final_df.sort_values(by="time")
+    final_df = final_df.sort_values(by=["device_id", "time"])  # 같은 단말기번호끼리 정렬
 
-    # 그래프 그리기
-    plt.figure(figsize=(16, 6))
+    # 그래프 크기 조정 (가로, 세로)
+    plt.figure(figsize=(20, 10))
     print("그래프 그리는 중...")
 
     for device_id, subset in final_df.groupby("device_id"):
         color = device_colors[device_id]  # 같은 단말기번호끼리 같은 색상 지정
-        plt.plot(subset["time"], subset["SOH"], label=device_id, alpha=0.6, color=color, marker='o', linestyle='-')
+        subset = subset.sort_values(by="time")  # 시간순 정렬
 
-    # ✅ x축 눈금 개수 조정 (하루 간격으로 설정)
-    plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=7))  # 하루 단위로 설정
+        # 🔹 **점과 선을 함께 그리기**
+        plt.plot(subset["time"], subset["SOH"], color=color, linestyle='-', alpha=0.6, linewidth=1,
+                 label=device_id)  # 선 연결
+        plt.scatter(subset["time"], subset["SOH"], color=color, alpha=0.8, marker='o')  # 점 표시
+
+    # x축 눈금 개수 조정 (7일 간격으로 설정)
+    plt.gca().xaxis.set_major_locator(mdates.DayLocator(interval=7))  # 7일 단위로 설정
     plt.gca().xaxis.set_major_formatter(mdates.DateFormatter("%Y-%m-%d"))  # 날짜 포맷 변경
     plt.xticks(rotation=45)  # x축 레이블 45도 회전
-
-    # ✅ 너무 많은 눈금이 생성되는 경우 자동 최적화
-    plt.gca().xaxis.set_major_locator(mdates.AutoDateLocator())
 
     plt.xlabel("Time")
     plt.ylabel("SOH (%)")
     plt.title("SOH vs Time (Grouped by Device ID, Start & End Points)")
-    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize="x-small", title="Device ID", ncol=3)
+
+    # 🔹 **모든 범례를 표시하도록 설정**
+    plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize="small", title="Device ID", ncol=5)  # ncol 값 증가
+
     plt.grid()
 
-    print("그래프 저장 중...")
-    plt.savefig("optimized_output.png", bbox_inches="tight")  # 범례가 잘리지 않도록 설정
+    # 그래프 저장 경로 설정
+    print(f"그래프 저장 중... ({output_file})")
+    plt.savefig(output_file, bbox_inches="tight")  # 지정된 폴더에 저장
     print("그래프 저장 완료")
 
     # 그래프 출력
