@@ -12,7 +12,7 @@ matplotlib.use('TkAgg')
 # 저장할 폴더 경로
 output_folder = r"C:\Users\6211s\OneDrive\Desktop\kentech\EV 열화 인자 분석\250224"
 # 저장할 파일 경로 변경
-output_file = os.path.join(output_folder, "SOH vs Time 20% Graph.png")  # 저장할 파일 경로
+output_file = os.path.join(output_folder, "SOH vs Time 40% Graph.png")  # 저장할 파일 경로
 
 # SOH 정보 파일 로드
 soh_results_path = os.path.join(output_folder, "BMS_SOC SOH 40%_results.csv")
