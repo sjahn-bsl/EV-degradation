@@ -80,7 +80,7 @@ if trip_data:
         subset = subset.sort_values(by="time")  # 시간순 정렬
 
         # 선 그리기
-        line, = plt.plot(subset["time"], subset["SOH"], color=color, linestyle='-', marker='o', alpha=0.6, linewidth=1, label=device_id)
+        line, = plt.plot(subset["time"], subset["SOH"], color=color, linestyle='-', marker='o', markersize=3, alpha=1.0, linewidth=1.5, label=device_id)
         legend_handles.append(line)  # 범례 핸들 추가
 
     # x축 눈금 조정
