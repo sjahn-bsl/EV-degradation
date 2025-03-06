@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
 # 데이터 파일 경로 설정
-input_file = r"C:\Users\6211s\OneDrive\Desktop\kentech\EV 열화 인자 분석\250308\BMS_SOC SOH results2 40%.csv"
+input_file = r"C:\Users\6211s\OneDrive\Desktop\kentech\EV 열화 인자 분석\250308\BMS_SOC SOH results2 30%.csv"
 output_folder = r"C:\Users\6211s\OneDrive\Desktop\kentech\EV 열화 인자 분석\250308"
 os.makedirs(output_folder, exist_ok=True)  # 폴더가 없으면 생성
 
@@ -36,12 +36,12 @@ plt.xticks(rotation=45)
 plt.xlabel("Time")
 plt.ylabel("SOH_cal")
 plt.title(f"SOH_cal vs Time per Device (Total Devices: {total_devices})")  # 총 단말기 개수 추가
-plt.legend(bbox_to_anchor=(1.1, 1), loc='upper left', fontsize="small", ncol=2)
+plt.legend(bbox_to_anchor=(1.1, 1), loc='upper left', fontsize="small", ncol=3)
 plt.grid()
 plt.tight_layout()
 
 # 그래프 저장
-output_file = os.path.join(output_folder, "SOH_cal vs Time 40%.png")
+output_file = os.path.join(output_folder, "SOH_cal vs Time 30%.png")
 plt.savefig(output_file, bbox_inches="tight")
 print(f"그래프가 저장되었습니다: {output_file}")
 
