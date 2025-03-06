@@ -30,8 +30,9 @@ for delta in SOC_deltas:
 
     plt.figure(figsize=(30, 10))
 
-    for device_id in unique_devices:
-        subset = df[df["device_id"] == device_id]
+    for device_id in unique_devices: # 각 단말기별로 반복문을 실행하여, 데이터를 개별적으로 처리.
+        subset = df[df["device_id"] == device_id] # 특정 단말기에 해당하는 데이터만 필터링하여 subset이라는 새로운 데이터프레임을 생성
+        # subset["time"], subset["SOH_cal (%)"]이 벡터 역할을 수행
         plt.plot(subset["time"], subset["SOH_cal (%)"], marker='o', linestyle='-', label=f"Device {device_id}")
 
     # x축 포맷 설정
