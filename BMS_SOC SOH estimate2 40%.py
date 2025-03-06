@@ -159,7 +159,7 @@ if __name__ == "__main__":
     results_df = pd.DataFrame(results)
 
     # 변경된 CSV 파일명 설정
-    output_csv_path = r"C:\Users\6211s\OneDrive\Desktop\kentech\EV 열화 인자 분석\250224\BMS_SOC SOH 40%_results2.csv"
+    output_csv_path = r"C:\Users\6211s\OneDrive\Desktop\kentech\EV 열화 인자 분석\250224\BMS_SOC SOH results2 40%.csv"
 
     # 폴더가 없으면 생성
     os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
