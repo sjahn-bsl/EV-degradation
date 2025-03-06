@@ -123,7 +123,7 @@ def calculate_soh(file_path):
 
         # SOC 변화량 계산
         delta_soc = soc_end - soc_initial
-        if abs(delta_soc) < 0.4:
+        if abs(delta_soc) < 0.3:
             return None  # SOC 변화량이 너무 적으면 제외
 
         # Q_current 계산 (trapz 이용)
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     results_df = pd.DataFrame(results)
 
     # 변경된 CSV 파일명 설정
-    output_csv_path = r"C:\Users\6211s\OneDrive\Desktop\kentech\EV 열화 인자 분석\250308\BMS_SOC SOH results2 40%.csv"
+    output_csv_path = r"C:\Users\6211s\OneDrive\Desktop\kentech\EV 열화 인자 분석\250308\BMS_SOC SOH results2 30%.csv"
 
     # 폴더가 없으면 생성
     os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
