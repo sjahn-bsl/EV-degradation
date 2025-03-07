@@ -3,17 +3,18 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 
-# 데이터 파일 및 출력 폴더 설정
-base_folder = r"C:\Users\6211s\OneDrive\Desktop\kentech\EV 열화 인자 분석\250308"
+# 데이터 파일 경로 설정
+base_folder = r"C:\Users\6211s\OneDrive\Desktop\kentech\EV 열화 인자 분석\250306"
 SOC_deltas = ["20%", "30%", "40%"]  # 다양한 ΔSOC 값
 
-# 폴더 생성
-os.makedirs(base_folder, exist_ok=True)
+# 그래프를 저장할 새로운 폴더 설정
+output_folder = os.path.join(base_folder, "SOH_BMS vs Time")
+os.makedirs(output_folder, exist_ok=True)  # 폴더가 없으면 생성
 
 # ΔSOC별 데이터 처리 및 그래프 생성
 for delta in SOC_deltas:
     input_file = os.path.join(base_folder, f"BMS_SOC SOH results2 {delta}.csv")
-    output_file = os.path.join(base_folder, f"SOH_BMS vs Time {delta}.png")
+    output_file = os.path.join(output_folder, f"SOH_BMS vs Time {delta}.png")
 
     # 데이터 로드
     df = pd.read_csv(input_file)
