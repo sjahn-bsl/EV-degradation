@@ -475,26 +475,26 @@ def process_single_file(file_path, save_path):
         cut = sorted(set(cut))
 
         # (5) Trip별 처리, Trip 유효성 검사 및 저장
-        trip_counter = 1
-        for idx in range(len(cut) - 1):
-            start_idx = cut[idx]
-            end_idx = cut[idx + 1] - 1
+        trip_counter = 1 # 저장할 Trip의 순번을 관리
+        for idx in range(len(cut) - 1): # 분할된 Trip 개수만큼 반복
+            start_idx = cut[idx] # 현재 Trip의 시작 인덱스
+            end_idx = cut[idx + 1] - 1 # 현재 Trip의 종료 인덱스 (다음 cut 인덱스의 바로 전)
 
             # 주행 상태(0) 구간만 처리
             if data.loc[start_idx, 'chrg_cable_conn'] != 0:
-                continue
+                continue # 충전 상태에서는 Trip으로 간주하지 않음
 
             # 기본 trip 슬라이싱
-            trip = data.loc[start_idx:end_idx, :]
+            trip = data.loc[start_idx:end_idx, :] # Trip 데이터 추출
 
             # (5-1) Trip 기본 유효성 체크
             if not check_trip_base_conditions(trip):
-                continue
+                continue # 유효하지 않은 Trip이면 처리하지 않고 넘어감
 
             # (5-2) Trip 확장 조건 + expand(앞뒤 30행)
             expanded_trip = check_time_gap_conditions(data, start_idx, end_idx)
             if expanded_trip is None:
-                continue
+                continue # 확장 불가능한 Trip은 저장하지 않음
 
             ###################################################################
             # (5-3) "확장된 Trip" 평균 모듈 온도도 20~28℃ 범위인지 재확인
