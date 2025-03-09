@@ -609,26 +609,26 @@ def process_trip_by_trip_soc_2hr(start_path, save_path):
     CSV 파일을 trip 단위로 분할/저장하는 메인 함수 (SOC 추정용 2시간 조건)
     start_path에서 모든 csv파일을 탐색, 각 csv 파일을 Trip 단위로 변환 후 save_path에 저장
     """
-    csv_files = [os.path.join(root, file)
-                 for root, _, files in os.walk(start_path)
-                 for file in files if file.endswith('.csv')]
-    total_files = len(csv_files)
+    csv_files = [os.path.join(root, file) #파일 경로를 절대 경로로 변환
+                 for root, _, files in os.walk(start_path) #os.walk(start_path): start_path 내부의 모든 디렉터리 탐색
+                 for file in files if file.endswith('.csv')] # csv 파일만 탐색
+    total_files = len(csv_files) # 총 csv 파일 개수를 저장
 
-    with tqdm(total=total_files, desc="Processing files", unit="file") as pbar:
-        future_to_file = {}
-        with ProcessPoolExecutor() as executor:
-            for file_path in csv_files:
-                future = executor.submit(process_wrapper_2hr, file_path, save_path)
-                future_to_file[future] = file_path
+    with tqdm(total=total_files, desc="Processing files", unit="file") as pbar: #진행률바를 출력하는 라이브러리
+        future_to_file = {} # future 객체(비동기 실행 객체)와 파일 경로를 매핑, 실행된 각 프로세스의 결과를 추적
+        with ProcessPoolExecutor() as executor: # 병렬 처리(Python 멀티프로세싱) 지원
+            for file_path in csv_files: # 각 csv파일을 병렬로 처리
+                future = executor.submit(process_wrapper_2hr, file_path, save_path) # 각 csv 파일을 process_wrapper() 함수에 전달하여 비동기 실행, 비동기 실행=여러 파일을 동시에 처리
+                future_to_file[future] = file_path  #future 객체와 해당 파일 경로를 저장(오류 발생 시 어떤 파일인지 추적 가능)
 
-            for future in as_completed(future_to_file):
+            for future in as_completed(future_to_file): # 병렬 처리된 파일들의 결과 확인, as_completed(future_to_file): 모든 병렬 작업이 완료될 때까지 대기
                 file_path = future_to_file[future]
                 try:
-                    future.result()
+                    future.result() #비동기 작업의 실행 결과를 가져옴
                 except Exception as exc:
-                    print(f'File {file_path} generated an exception: {exc}')
+                    print(f'File {file_path} generated an exception: {exc}') # 특정파일에서 오류가 발생하면 오류 메세지를 출력
                 finally:
-                    pbar.update(1)
+                    pbar.update(1) # tqdm 진행률 바를 1 증가시킴
 
     print("Processing complete")
 
@@ -637,10 +637,10 @@ def process_wrapper_2hr(file_path, save_path):
     단일 파일을 처리하는 래퍼 함수 (SOC 추정용 2시간 확장 조건 적용)
     """
     try:
-        process_single_file_2hr(file_path, save_path)
-    except Exception as e:
+        process_single_file_2hr(file_path, save_path) # process_single_file 호출
+    except Exception as e: # 실행 도중 오류가 발생할 경우 예외 처리
         print(f"Error processing file {file_path}: {e}")
-        raise
+        raise # raise를 사용하여 예외를 다시 발생시킴
 
 def process_single_file_2hr(file_path, save_path):
     """
@@ -715,26 +715,26 @@ def process_single_file_2hr(file_path, save_path):
         cut = sorted(set(cut))
 
         # (5) Trip별 처리, Trip 유효성 검사 및 저장
-        trip_counter = 1
-        for idx in range(len(cut) - 1):
-            start_idx = cut[idx]
-            end_idx = cut[idx + 1] - 1
+        trip_counter = 1 # 저장할 Trip의 순번을 관리
+        for idx in range(len(cut) - 1): # 분할된 Trip 개수만큼 반복
+            start_idx = cut[idx] # 현재 Trip의 시작 인덱스
+            end_idx = cut[idx + 1] - 1 # 현재 Trip의 종료 인덱스 (다음 cut 인덱스의 바로 전)
 
             # 주행 상태(0) 구간만 처리
             if data.loc[start_idx, 'chrg_cable_conn'] != 0:
-                continue
+                continue # 충전 상태에서는 Trip으로 간주하지 않음
 
             # 기본 trip 슬라이싱
-            trip = data.loc[start_idx:end_idx, :]
+            trip = data.loc[start_idx:end_idx, :] # Trip 데이터 추출
 
             # (5-1) Trip 기본 유효성 체크
             if not check_trip_base_conditions_2hr(trip):
-                continue
+                continue # 유효하지 않은 Trip이면 처리하지 않고 넘어감
 
             # (5-2) Trip 확장 조건 + expand(앞뒤 30행)
             expanded_trip = check_time_gap_conditions_2hr(data, start_idx, end_idx)
             if expanded_trip is None:
-                continue
+                continue # 확장 불가능한 Trip은 저장하지 않음
 
             ###################################################################
             # (5-3) "확장된 Trip" 평균 모듈 온도도 20~28℃ 범위인지 재확인
