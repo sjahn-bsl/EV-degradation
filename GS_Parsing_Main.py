@@ -1,6 +1,7 @@
 import os
 from GS_preprocessing import process_device_folders, process_files_trip_by_trip, process_files, delete_zero_kb_files
 from GS_preprocessing_2 import merge_bms_data_by_device, process_files_trip_by_trip as process_trip_by_trip_soc, process_trip_by_trip_soc_2hr
+from GS_preprocessing_3 import process_trip_by_trip_soc_2hr_extended
 from GS_vehicle_dict import vehicle_dict
 
 def pre_process():
@@ -11,8 +12,9 @@ def pre_process():
         print("4: Trip by Trip (SOC 추정용) Parsing")
         print("5: Pre-Process BMS Files(년 단위 묶음), N days Parsing")
         print("6: Trip by Trip (SOC 추정용) Parsing_2hr")
-        print("7: Return to previous menu")
-        print("8: Quitting the program.")
+        print("7: Trip by Trip (SOC 추정용) Parsing_2hr_extended")
+        print("8: Return to previous menu")
+        print("9: Quitting the program.")
         choice = input("Enter the number you want to run: ")
 
         if not choice.isdigit():
@@ -74,9 +76,17 @@ def pre_process():
             break
 
         elif choice == 7:
+            start_path = os.path.normpath(r'D:\SamsungSTF\Processed_Data\Merged')
+            save_path = os.path.normpath(r'D:\SamsungSTF\Processed_Data\TripByTrip_soc_2hr_extended')
+            if not os.path.exists(save_path):
+                os.makedirs(save_path, exist_ok=True)
+            process_trip_by_trip_soc_2hr_extended(start_path, save_path)
             break
 
         elif choice == 8:
+            break
+
+        elif choice == 9:
             print("Quitting the program.")
             return
 
