@@ -158,7 +158,7 @@ def calculate_SOH_OCV(file_path):
         # SOC 변화량 계산
         # delta_soc = soc_end - soc_initial
 
-        if abs(delta_SOC_OCV) < 0.4: # SOC가 줄어드는 경우 + 증가하는 경우
+        if abs(delta_SOC_OCV) < 0.3: # SOC가 줄어드는 경우 + 증가하는 경우
             return None  # SOC 변화량이 너무 적으면 제외
 
         # 주어진 Trip동안 사용된 전류 데이터를 trapz로 적분하여 Q_current 계산
@@ -199,7 +199,7 @@ if __name__ == "__main__": # Python에서 현재 파일이 직접 실행될 때�
     results_df = pd.DataFrame(results) # DataFrame 생성 및 CSV 파일 저장
 
     # 변경된 CSV 파일명 설정
-    output_csv_path = r"C:\Users\6211s\OneDrive\Desktop\kentech\EV 열화 인자 분석\250306\OCV-SOC SOH results 40%.csv"
+    output_csv_path = r"C:\Users\6211s\OneDrive\Desktop\kentech\EV 열화 인자 분석\250306\OCV-SOC SOH results 30%.csv"
 
     # 폴더가 없으면 생성
     os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
