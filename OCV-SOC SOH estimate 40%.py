@@ -119,7 +119,8 @@ def calculate_SOH_OCV(file_path):
         df['soc'] = df['soc'] * 0.01  # SOC 값을 0~1 범위로 변환
         df['cell_current'] = df['pack_current'] / parallel_count  # 차량별 배터리의 Parallel 고려하여 cell_current 계산
 
-        trip_start_time = df['time'].iloc[0]  # 첫 번째 time 값
+        trip_start_time = df['time'].iloc[0]  # 첫 번째 time 값, OCV0의 time 값
+        time_after_trip_end_2h = df['time'].iloc[-1] # extended 파일의 마지막 time 값, OCV1의 time 값
         soh_initial = df['soh'].iloc[0] if 'soh' in df.columns else None # 첫 번째 SOH 값
         odometer_initial = df['odometer'].iloc[0] if 'odometer' in df.columns else None  # 첫 번째 odometer 값
 
@@ -171,7 +172,7 @@ def calculate_SOH_OCV(file_path):
         # 결과 반환
         return {
             "file": file_name, "device_id": device_id, "vehicle_model": vehicle_model,
-            "time": trip_start_time,"odometer (km)": odometer_initial,
+            "trip_start_time": trip_start_time, "time_after_trip_end_2h": time_after_trip_end_2h, "odometer (km)": odometer_initial,
             "pack_volt0": pack_volt0, "pack_volt1": pack_volt1, "OCV0": OCV0, "OCV1": OCV1, "SOC0": SOC0, "SOC1": SOC1,
             "delta_SOC": delta_SOC_OCV, "Q_current (Ah)": Q_current, "Q_initial (Ah)": Q_initial,
             "SOH_BMS (%)": soh_initial, "SOH_OCV (%)": SOH_OCV
