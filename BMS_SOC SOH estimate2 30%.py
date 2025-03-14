@@ -6,7 +6,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from tqdm import tqdm
 
 # Trip CSV 파일들이 저장된 폴더 경로
-trip_data_folder = r"D:\SamsungSTF\Processed_Data\TripByTrip"
+trip_data_folder = r"E:\SamsungSTF\Processed_Data\TripByTrip"
 
 # 차량별 초기 배터리 용량 설정 (cell 단위로 변환)
 Q_initial_map = {
@@ -128,7 +128,7 @@ def calculate_soh(file_path):
 
         # Q_current 계산 (trapz 이용)
         df['time_seconds'] = (df['time'] - df['time'].iloc[0]).dt.total_seconds()
-        Q_current = abs(np.trapz(df['cell_current'], df['time_seconds'])) / abs(delta_soc) / 3600  # Ah 변환
+        Q_current = np.trapz(df['cell_current'], df['time_seconds']) / -(delta_soc) / 3600  # Ah 변환
 
         # SOH 계산
         SOH = (Q_current / Q_initial) * 100
@@ -159,7 +159,7 @@ if __name__ == "__main__":
     results_df = pd.DataFrame(results)
 
     # 변경된 CSV 파일명 설정
-    output_csv_path = r"C:\Users\6211s\OneDrive\Desktop\kentech\EV 열화 인자 분석\250308\BMS_SOC SOH results2 30%.csv"
+    output_csv_path = r"C:\Users\BSL\Desktop\EV 열화 인자 분석\250306\BMS_SOC SOH results 30%.csv"
 
     # 폴더가 없으면 생성
     os.makedirs(os.path.dirname(output_csv_path), exist_ok=True)
