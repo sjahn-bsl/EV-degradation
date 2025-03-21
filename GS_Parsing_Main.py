@@ -87,7 +87,7 @@ def pre_process():
 
         elif choice == 8:
             start_path = os.path.normpath(r'D:\SamsungSTF\Processed_Data\Merged')
-            save_path = os.path.normpath(r'E:\SamsungSTF\Processed_Data\TripByTrip_soc_2hr_notemp')
+            save_path = os.path.normpath(r'D:\SamsungSTF\Processed_Data\TripByTrip_soc_2hr_notemp')
             if not os.path.exists(save_path):
                 os.makedirs(save_path, exist_ok=True)
             process_trip_by_trip_soc_2hr_notemp(start_path, save_path)
