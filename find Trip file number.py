@@ -6,6 +6,7 @@ from tqdm import tqdm
 folder_path = r"D:\SamsungSTF\Processed_Data\TripByTrip_soc_2hr"
 
 # 카운터 초기화
+count_18 = 0
 count_20 = 0
 count_30 = 0
 count_40 = 0
@@ -28,6 +29,8 @@ for file_path in tqdm(csv_files, desc="Processing Files", unit="file"):
         delta_soc = soc_initial - soc_final
 
         # 변화량 조건별 카운트
+        if delta_soc >= 18:
+            count_18 += 1
         if delta_soc >= 20:
             count_20 += 1
         if delta_soc >= 30:
@@ -43,6 +46,7 @@ for file_path in tqdm(csv_files, desc="Processing Files", unit="file"):
 # 결과 출력
 print("\n=== SOC 변화량 분석 결과 ===")
 print(f"총 파일 수: {total_files}")
+print(f"SOC 변화량 ≥ 18: {count_18}개")
 print(f"SOC 변화량 ≥ 20: {count_20}개")
 print(f"SOC 변화량 ≥ 30: {count_30}개")
 print(f"SOC 변화량 ≥ 40: {count_40}개")
