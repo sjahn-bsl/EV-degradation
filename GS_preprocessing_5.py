@@ -225,8 +225,9 @@ def check_charge_conditions(trip):
             start = change_points[i]
             end = change_points[i + 1]
             if trip.loc[start, 'charging'] == 0:
-                time_diff = trip.loc[end, 'time'] - trip.loc[start, 'time']
-                if time_diff <= pd.Timedelta(minutes=1):
+                time_diff = trip.loc[end, 'time'] - trip.loc[start, 'time'] # 시간 변화량 계산
+                pack_volt_diff = abs(trip.loc[end, 'pack_volt'] - trip.loc[start, 'pack_volt']) # pack_volt 변화량 계산
+                if time_diff <= pd.Timedelta(minutes=1) and pack_volt_diff < 20: # 조건: 5분 이하이고, 전압 변화가 20V 미만일 때만 붙이기
                     trip.loc[start:end, 'charging'] = 1
 
         # 5분 이상 충전 지속 구간 존재하는지 검사
@@ -309,8 +310,12 @@ def check_trip_base_conditions_2hr_with_charging(trip):
 
 def check_time_gap_conditions_2hr_with_charging(data, start_idx, end_idx):
     """
-    1) Trip 시작 시점과 이전 행의 timestamp 차이 >= 2시간(7200초)
-    2) Trip 끝 시점과 다음 행의 timestamp 차이 >= 2시간(7200초)
+    1) 24시간(86400초) >= Trip 시작 시점과 이전 행의 timestamp 차이 >= 2시간(7200초)
+    2) 24시간(86400초) >= Trip 끝 시점과 다음 행의 timestamp 차이 >= 2시간(7200초)
+
+        단, 시간 간격이 24시간 이상이더라도 아래 예외 조건을 만족하면 확장 허용:
+        - 조건1 예외: 31행과 30행의 SOC 차이가 ≤ 1%
+        - 조건2 예외: -31행과 -32행의 SOC 차이가 ≤ 1%
     ---------------------------------------------------------
     조건을 만족하면, Trip 앞뒤로 30행씩 확장해서 리턴.
     만족하지 못하면 None.
@@ -323,14 +328,28 @@ def check_time_gap_conditions_2hr_with_charging(data, start_idx, end_idx):
     # 이전 및 다음 timestamp 가져오기, 이전/다음 데이터와 비교해서 Trip의 시작/종료가 충분히 떨어져 있는지 확인
     prev_time = data.loc[start_idx - 1, 'time']
     next_time = data.loc[end_idx + 1, 'time']
+    prev_gap = (trip_start_time - prev_time).total_seconds()
+    next_gap = (next_time - trip_end_time).total_seconds()
 
-    # (1) 2시간 이상, Trip이 기존 데이터와 너무 가까운 경우 확장하지 않음
-    if (trip_start_time - prev_time).total_seconds() < 7200:
+    # SOC 예외 조건 준비 (전제: 'soc' 컬럼이 존재하고 길이가 충분함)
+    try:
+        soc_diff_prev = abs(data.loc[start_idx, 'soc'] - data.loc[start_idx-1, 'soc'])
+    except:
+        soc_diff_prev = 999  # 비교 불가능하면 큰 값으로 간주
+
+    try:
+        soc_diff_next = abs(data.loc[end_idx+1, 'soc'] - data.loc[end_idx, 'soc'])
+    except:
+        soc_diff_next = 999
+
+    # 이전 구간 검사 (2시간 이상, 24시간 미만 또는 예외 허용)
+    if not (7200 <= prev_gap < 86400 or (prev_gap >= 86400 and soc_diff_prev <= 0.5)):
         return None
 
-    # (2) 2시간 이상, Trip이 끝난 후 다음 데이터와 너무 가까운 경우 확장하지 않음
-    if (next_time - trip_end_time).total_seconds() < 7200:
+    # 다음 구간 검사 (2시간 이상, 24시간 미만 또는 예외 허용)
+    if not (7200 <= next_gap < 86400 or (next_gap >= 86400 and soc_diff_next <= 0.5)):
         return None
+
     # Trip을 확장하여 더 많은 데이터 확보
     expanded_start = max(start_idx - 30, 0)
     expanded_end = min(end_idx + 30, len(data) - 1)
