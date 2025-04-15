@@ -81,14 +81,14 @@ def process_single_file_2hr_with_charging(file_path, save_path, save_path2):
             name_parts = file_name.split('_')
             device_no = name_parts[2]
             year_month = name_parts[3][:7]
-            file_prefix = f"bms_altitude_{device_no}-{year_month}-trip-"
+            file_prefix = f"bms_altitude_{device_no}_{year_month}-trip-"
         else: # altitude 컬럼이 없으면 bms_접두사 사용
             parts = file_path.split(os.sep)
             file_name = parts[-1]
             name_parts = file_name.split('_')
             device_no = name_parts[1]
             year_month = name_parts[2][:7]
-            file_prefix = f"bms_{device_no}-{year_month}-trip-"
+            file_prefix = f"bms_{device_no}_{year_month}-trip-"
 
         # (2) device_no → vehicle_type 매핑
         vehicle_type = get_vehicle_type(device_no, vehicle_dict) # vehicle_dict를 참고하여 device_no에 해당하는 차량 모델명 가져옴.
