@@ -220,14 +220,14 @@ def check_charge_conditions(trip):
                 change_points.append(i)
         change_points.append(len(trip) - 1)
 
-        # 일시적 공백 무시 (1분 이내 gap은 연결)
+        # 일시적 공백 무시 (5분 이내 gap은 연결)
         for i in range(len(change_points) - 1):
             start = change_points[i]
             end = change_points[i + 1]
             if trip.loc[start, 'charging'] == 0:
                 time_diff = trip.loc[end, 'time'] - trip.loc[start, 'time'] # 시간 변화량 계산
                 pack_volt_diff = abs(trip.loc[end, 'pack_volt'] - trip.loc[start, 'pack_volt']) # pack_volt 변화량 계산
-                if time_diff <= pd.Timedelta(minutes=1) and pack_volt_diff < 20: # 조건: 5분 이하이고, 전압 변화가 20V 미만일 때만 붙이기
+                if time_diff <= pd.Timedelta(minutes=5) and pack_volt_diff < 20: # 조건: 5분 이하이고, 전압 변화가 20V 미만일 때만 붙이기
                     trip.loc[start:end, 'charging'] = 1
 
         # 5분 이상 충전 지속 구간 존재하는지 검사
